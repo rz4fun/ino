@@ -7,6 +7,7 @@
 
 YunServer server(5678);
 Servo steer_servo_;
+Servo esc_;
 
 int invalid_command_count_;
 
@@ -26,13 +27,18 @@ static int STEER_RIGHT_STOPPING_ANGLE = 125;
 // connection will shutdown automatically.
 static int AUTO_SHUTDOWN_THRESHOLD = 15;
 
-inline boolean InitServo() {
+inline boolean InitServos() {
   steer_servo_.attach(STEER_PIN);
-  if (steer_servo_.attached()) {
-    steer_servo_.write(90);
-    return true;
+  esc_.attach(SPEED_PIN);
+  if (!steer_servo_.attached()) {
+    return false;
   }
-  return false;
+  if (!esc_.attached()) {
+    return false;
+  }
+  steer_servo_.write(90);
+  esc_.write(90);
+  return true;
 }
 
 
@@ -71,14 +77,20 @@ boolean ProcessTextualCommand(YunClient& client) {
     // set speed
   #ifdef DEBUG
     Serial.print("Speed = ");
-  #endif
     Serial.println(value);
+  #endif
+    int adjusted_value = value > 90 ? 90 : value;
+    adjusted_value = 90 - adjusted_value;
+    esc_.write(adjusted_value);
   } else if (instruction == DRIVE_BACKWARD) {
     // set speed
   #ifdef DEBUG
     Serial.print("Speed = ");
-  #endif
     Serial.println(-value);
+  #endif
+    int adjusted_value = value > 90 ? 89 : value;
+    adjusted_value += 90;
+    esc_.write(adjusted_value);
   } else if (instruction == STEER_LEFT) {
     // set steer
   #ifdef DEBUG
@@ -136,8 +148,9 @@ void loop() {
   if (client) {
     digitalWrite(13, HIGH);
     delay(2000);
-    if (!InitServo()) {
+    if (!InitServos()) {
       steer_servo_.detach();
+      esc_.detach();
       client.stop();
       return;
     }
@@ -145,6 +158,7 @@ void loop() {
     invalid_command_count_ = 0;
     while (ProcessTextualCommand(client)) {}
     steer_servo_.detach();
+    esc_.detach();
     client.stop();
   }
 }
