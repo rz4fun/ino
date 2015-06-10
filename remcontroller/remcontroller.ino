@@ -79,18 +79,14 @@ boolean ProcessTextualCommand(YunClient& client) {
     Serial.print("Speed = ");
     Serial.println(value);
   #endif
-    int adjusted_value = value > 90 ? 90 : value;
-    adjusted_value = 90 - adjusted_value;
-    esc_.write(adjusted_value);
+    esc_.write(value);
   } else if (instruction == DRIVE_BACKWARD) {
     // set speed
   #ifdef DEBUG
     Serial.print("Speed = ");
     Serial.println(-value);
   #endif
-    int adjusted_value = value > 90 ? 89 : value;
-    adjusted_value += 90;
-    esc_.write(adjusted_value);
+    esc_.write(value);
   } else if (instruction == STEER_LEFT) {
     // set steer
   #ifdef DEBUG
