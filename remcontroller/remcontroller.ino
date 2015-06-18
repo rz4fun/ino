@@ -17,6 +17,9 @@ static char COMMAND_STEER = 'S';
 
 static int STEER_PIN = 3;
 static int SPEED_PIN = 5;
+static int LEFT_TURN_SIGNAL_PIN = 12;
+static int RIGHT_TURN_SIGNAL_PIN = 13;
+static int BLINK_FREQUENCY = 1;  // 1 up and 1 down per second:
 
 static int STEER_LEFT_STOPPING_ANGLE = 55; //50;
 static int STEER_RIGHT_STOPPING_ANGLE = 130; //125;
@@ -48,13 +51,31 @@ inline void InitServer() {
 }
 
 
+inline void InitTurnSignals() {
+  pinMode(LEFT_TURN_SIGNAL_PIN, OUTPUT);
+  pinMode(RIGHT_TURN_SIGNAL_PIN, OUTPUT);
+  Blink(LEFT_TURN_SIGNAL_PIN);
+  Blink(RIGHT_TURN_SIGNAL_PIN);
+  Blink(LEFT_TURN_SIGNAL_PIN);
+  Blink(RIGHT_TURN_SIGNAL_PIN);
+}
+
+
 void setup() {
   Serial.begin(9600);
   pinMode(13, OUTPUT);
   digitalWrite(13, HIGH);
   Bridge.begin();
   digitalWrite(13, LOW);
+  InitTurnSignals();
   InitServer();
+}
+
+
+void Blink(int pin_id) {
+  digitalWrite(pin_id, HIGH);
+  delay(500);
+  digitalWrite(pin_id, LOW);
 }
 
 
@@ -86,6 +107,11 @@ boolean ProcessTextualCommand(YunClient& client) {
     Serial.print("Steer = ");
     Serial.println(value);
   #endif
+    if (value < STEER_CENTER) {
+      Blink(LEFT_TURN_SIGNAL_PIN);
+    } else if (value > STEER_CENTER) {
+      Blink(RIGHT_TURN_SIGNAL_PIN);
+    }
     steer_servo_.write(
         value < STEER_CENTER ?
             (value < STEER_LEFT_STOPPING_ANGLE ? STEER_LEFT_STOPPING_ANGLE : value) :
