@@ -3,48 +3,97 @@
 #include <YunClient.h>
 #include <Servo.h>
 
-#define DEBUG;
+#define DEBUG
 
-YunServer server(5678);
+YunServer server_(5678);
+YunClient client_;
 Servo steer_servo_;
 Servo esc_;
 
 int invalid_command_count_;
 
-static char COMMAND_ENGINE_OFF = '0';
-static char COMMAND_DRIVE = 'D';
-static char COMMAND_STEER = 'S';
+#define COMMAND_ENGINE_OFF '0'
+#define COMMAND_DRIVE 'D'
+#define COMMAND_STEER 'S'
 
-static int STEER_PIN = 3;
-static int SPEED_PIN = 5;
+#define STEER_PIN 3
+#define SPEED_PIN 5
+#define LEFT_TURN_SIGNAL_PIN 7
+#define RIGHT_TURN_SIGNAL_PIN 13
+#define HEADLIGHT_SIGNAL_PIN 12
 
-static int STEER_LEFT_STOPPING_ANGLE = 55; //50;
-static int STEER_RIGHT_STOPPING_ANGLE = 130; //125;
-static int STEER_CENTER = 90;
-static int SPEED_ZERO = 90;
+#define STEER_LEFT_STOPPING_ANGLE 55 //50;
+#define STEER_RIGHT_STOPPING_ANGLE 130 //125;
+#define STEER_CENTER 90
+#define SPEED_ZERO 90
 
 // if the number of consecutive invalid commands exceeds this number,
 // connection will shutdown automatically.
 static int AUTO_SHUTDOWN_THRESHOLD = 15;
 
+#define STREAM_TIMEOUT 40  // client read timeout milliseconds
+
+unsigned long current_timestamp_;
+unsigned long previous_timestamp_;
+// LED/pin state
+static int left_turn_signal_pin_state_;
+static int right_turn_signal_pin_state_;
+// whether the signal should be "turned" on
+static boolean left_turn_signal_on_;
+static boolean right_turn_signal_on_;
+#define TURN_SIGNAL_LENGTH 400  // blink once per 400 millisec.
+
+
 inline boolean InitServos() {
   steer_servo_.attach(STEER_PIN);
-  esc_.attach(SPEED_PIN);
   if (!steer_servo_.attached()) {
     return false;
   }
+  steer_servo_.write(STEER_CENTER);
+  esc_.attach(SPEED_PIN);
   if (!esc_.attached()) {
     return false;
   }
-  steer_servo_.write(STEER_CENTER);
   esc_.write(SPEED_ZERO);
   return true;
 }
 
 
+inline void InitTurnSignals() {
+  pinMode(LEFT_TURN_SIGNAL_PIN, OUTPUT);
+  pinMode(RIGHT_TURN_SIGNAL_PIN, OUTPUT);
+  left_turn_signal_pin_state_ = LOW;
+  left_turn_signal_on_ = false;
+  right_turn_signal_pin_state_ = LOW;
+  right_turn_signal_on_ = false;
+  digitalWrite(LEFT_TURN_SIGNAL_PIN, LOW);
+  digitalWrite(RIGHT_TURN_SIGNAL_PIN, LOW);
+}
+
+
 inline void InitServer() {
-  server.noListenOnLocalhost();
-  server.begin();
+  server_.noListenOnLocalhost();
+  server_.begin();
+  InitTurnSignals();
+  Serial.println("Starting server");
+  while (true) {
+    client_ = server_.accept();
+    if (client_) {
+      client_.setTimeout(STREAM_TIMEOUT);
+      if (!InitServos()) {
+        steer_servo_.detach();
+        esc_.detach();
+        client_.stop();
+        return;
+      }
+      digitalWrite(13, HIGH);
+      delay(500);
+      digitalWrite(13, LOW);
+      previous_timestamp_ = current_timestamp_ = millis();
+      invalid_command_count_ = 0;
+      return;
+    }
+  }
 }
 
 
@@ -62,7 +111,7 @@ boolean ProcessTextualCommand(YunClient& client) {
   String command = client.readStringUntil('#');
   if (command == "") {
     if (++invalid_command_count_ == AUTO_SHUTDOWN_THRESHOLD) {
-      return false;
+      //return false;
     }
   } else {
     invalid_command_count_ = 0;
@@ -86,34 +135,55 @@ boolean ProcessTextualCommand(YunClient& client) {
     Serial.print("Steer = ");
     Serial.println(value);
   #endif
+    if (value < STEER_CENTER) {
+      right_turn_signal_on_ = false;
+      digitalWrite(RIGHT_TURN_SIGNAL_PIN, LOW);
+      left_turn_signal_on_ = true;
+    } else if (value > STEER_CENTER) {
+      left_turn_signal_on_ = false;
+      digitalWrite(LEFT_TURN_SIGNAL_PIN, LOW);
+      right_turn_signal_on_ = true;
+    } else {
+      left_turn_signal_on_ = false;
+      digitalWrite(LEFT_TURN_SIGNAL_PIN, LOW);
+      right_turn_signal_on_ = false;
+      digitalWrite(RIGHT_TURN_SIGNAL_PIN, LOW);
+    }
     steer_servo_.write(
         value < STEER_CENTER ?
             (value < STEER_LEFT_STOPPING_ANGLE ? STEER_LEFT_STOPPING_ANGLE : value) :
             (value > STEER_RIGHT_STOPPING_ANGLE ? STEER_RIGHT_STOPPING_ANGLE : value));
   }
-  delay(25);
   return true;
 }
 
 
 void loop() {
-  YunClient client = server.accept();
-  if (client) {
-    digitalWrite(13, HIGH);
-    delay(2000);
-    if (!InitServos()) {
+  current_timestamp_ = millis();
+  if (current_timestamp_ - previous_timestamp_ > TURN_SIGNAL_LENGTH) {
+    previous_timestamp_ = current_timestamp_;
+    if (left_turn_signal_on_) {
+      left_turn_signal_pin_state_ == LOW ?
+          left_turn_signal_pin_state_ = HIGH : left_turn_signal_pin_state_ = LOW;
+      digitalWrite(LEFT_TURN_SIGNAL_PIN, left_turn_signal_pin_state_);
+    }
+    if (right_turn_signal_on_) {
+      right_turn_signal_pin_state_ == LOW ?
+          right_turn_signal_pin_state_ = HIGH : right_turn_signal_pin_state_ = LOW;
+      digitalWrite(RIGHT_TURN_SIGNAL_PIN, right_turn_signal_pin_state_);
+    }
+  }
+  if (client_) {
+    if (!ProcessTextualCommand(client_)) {
       steer_servo_.detach();
       esc_.detach();
-      client.stop();
+      client_.stop();
+      Serial.println("OUT");
+      InitServer();
       return;
     }
-    digitalWrite(13, LOW);
-    invalid_command_count_ = 0;
-    while (ProcessTextualCommand(client)) {}
-    steer_servo_.detach();
-    esc_.detach();
-    client.stop();
   }
+  delay(50);
 }
 
 #undef DEBUG
