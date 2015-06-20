@@ -15,17 +15,21 @@ int invalid_command_count_;
 #define COMMAND_ENGINE_OFF '0'
 #define COMMAND_DRIVE 'D'
 #define COMMAND_STEER 'S'
+#define COMMAND_LIGHT 'L'
 
 #define STEER_PIN 3
 #define SPEED_PIN 5
 #define LEFT_TURN_SIGNAL_PIN 7
-#define RIGHT_TURN_SIGNAL_PIN 13
+#define RIGHT_TURN_SIGNAL_PIN 8
 #define HEADLIGHT_SIGNAL_PIN 12
 
 #define STEER_LEFT_STOPPING_ANGLE 55 //50;
 #define STEER_RIGHT_STOPPING_ANGLE 130 //125;
 #define STEER_CENTER 90
 #define SPEED_ZERO 90
+
+#define LIGHT_ON 1
+#define LIGHT_OFF 0
 
 // if the number of consecutive invalid commands exceeds this number,
 // connection will shutdown automatically.
@@ -71,10 +75,17 @@ inline void InitTurnSignals() {
 }
 
 
+inline void InitMainLights() {
+  pinMode(HEADLIGHT_SIGNAL_PIN, OUTPUT);
+  digitalWrite(HEADLIGHT_SIGNAL_PIN, LOW);
+}
+
+
 inline void InitServer() {
   server_.noListenOnLocalhost();
   server_.begin();
   InitTurnSignals();
+  InitMainLights();
   Serial.println("Starting server");
   while (true) {
     client_ = server_.accept();
@@ -153,6 +164,13 @@ boolean ProcessTextualCommand(YunClient& client) {
         value < STEER_CENTER ?
             (value < STEER_LEFT_STOPPING_ANGLE ? STEER_LEFT_STOPPING_ANGLE : value) :
             (value > STEER_RIGHT_STOPPING_ANGLE ? STEER_RIGHT_STOPPING_ANGLE : value));
+  } else if (instruction == COMMAND_LIGHT) {
+#ifdef DEBUG
+    Serial.print("Light = ");
+    Serial.println(value);
+#endif
+    value == LIGHT_OFF ?
+        digitalWrite(HEADLIGHT_SIGNAL_PIN, LIGHT_OFF) : digitalWrite(HEADLIGHT_SIGNAL_PIN, LIGHT_ON);
   }
   return true;
 }
