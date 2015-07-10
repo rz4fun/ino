@@ -13,6 +13,8 @@ Servo esc_;
 int invalid_command_count_;
 
 #define SECURITY_TOKEN "308ac3d3d02a3e6c0efe8e1a3f17df3d"
+static uint8_t confirmation_ = 0x0808;
+
 #define COMMAND_ENGINE_OFF '0'
 #define COMMAND_DRIVE 'D'
 #define COMMAND_STEER 'S'
@@ -91,6 +93,7 @@ inline void InitMainLights() {
 inline int Handshake() {
   String const& handshake_message = client_.readStringUntil('#');
   if (handshake_message == SECURITY_TOKEN) {
+    server_.write(confirmation_);
     return 0;
   }
   return 1;
