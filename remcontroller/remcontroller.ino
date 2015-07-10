@@ -12,6 +12,7 @@ Servo esc_;
 
 int invalid_command_count_;
 
+#define SECURITY_TOKEN "308ac3d3d02a3e6c0efe8e1a3f17df3d"
 #define COMMAND_ENGINE_OFF '0'
 #define COMMAND_DRIVE 'D'
 #define COMMAND_STEER 'S'
@@ -74,13 +75,25 @@ inline void InitTurnSignals() {
   right_turn_signal_on_ = false;
   digitalWrite(LEFT_TURN_SIGNAL_PIN, LOW);
   digitalWrite(RIGHT_TURN_SIGNAL_PIN, LOW);
-  hazard_binlker_on_ = false;
+  hazard_blinker_on_ = false;
 }
 
 
 inline void InitMainLights() {
   pinMode(HEADLIGHT_SIGNAL_PIN, OUTPUT);
   digitalWrite(HEADLIGHT_SIGNAL_PIN, LOW);
+}
+
+
+/**
+ * Verify the connection
+ */
+inline int Handshake() {
+  String const& handshake_message = client_.readStringUntil('#');
+  if (handshake_message == SECURITY_TOKEN) {
+    return 0;
+  }
+  return 1;
 }
 
 
@@ -94,6 +107,10 @@ inline void InitServer() {
     client_ = server_.accept();
     if (client_) {
       client_.setTimeout(STREAM_TIMEOUT);
+      if (Handshake()) {
+        client_.stop();
+        return;
+      } 
       if (!InitServos()) {
         steer_servo_.detach();
         esc_.detach();
@@ -122,7 +139,7 @@ void setup() {
 
 
 boolean ProcessTextualCommand(YunClient& client) {
-  String command = client.readStringUntil('#');
+  String const& command = client.readStringUntil('#');
   if (command == "") {
     if (++invalid_command_count_ == AUTO_SHUTDOWN_THRESHOLD) {
       //return false;
