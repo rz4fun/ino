@@ -13,7 +13,7 @@ Servo esc_;
 int invalid_command_count_;
 
 #define SECURITY_TOKEN "308ac3d3d02a3e6c0efe8e1a3f17df3d"
-static uint8_t confirmation_ = 0x0808;
+static uint8_t confirmation_ = 0x08;
 
 #define COMMAND_ENGINE_OFF '0'
 #define COMMAND_DRIVE 'D'
