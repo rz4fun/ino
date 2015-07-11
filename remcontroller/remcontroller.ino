@@ -93,6 +93,10 @@ inline void InitMainLights() {
 inline int Handshake() {
   String const& handshake_message = client_.readStringUntil('#');
   if (handshake_message == SECURITY_TOKEN) {
+#ifdef DEBUG
+    Serial.print("security token received: ");
+    Serial.println(handshake_message);
+#endif
     server_.write(confirmation_);
     return 0;
   }
