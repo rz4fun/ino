@@ -116,12 +116,13 @@ inline void InitServer() {
       client_.setTimeout(STREAM_TIMEOUT);
       if (Handshake()) {
         client_.stop();
-        return;
+        continue;
       } 
       if (!InitServos()) {
         steer_servo_.detach();
         esc_.detach();
         client_.stop();
+        // serious error, terminate
         return;
       }
       digitalWrite(13, HIGH);
@@ -225,7 +226,7 @@ void loop() {
       steer_servo_.detach();
       esc_.detach();
       client_.stop();
-      Serial.println("OUT");
+      Serial.println("Terminate control.");
       InitServer();
       return;
     }
