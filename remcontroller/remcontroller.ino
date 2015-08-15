@@ -231,7 +231,7 @@ void loop() {
       return;
     }
   }
-  delay(50);
+  delay(5);
 }
 
 #undef DEBUG
