@@ -104,7 +104,7 @@ inline int Handshake() {
 }
 
 
-inline void InitServer() {
+void InitServer() {
   server_.noListenOnLocalhost();
   server_.begin();
   InitTurnSignals();
@@ -146,8 +146,8 @@ void setup() {
 }
 
 
-boolean ProcessTextualCommand(YunClient& client) {
-  String const& command = client.readStringUntil('#');
+boolean ProcessTextualCommand() {
+  String const& command = client_.readStringUntil('#');
   if (command == "") {
     if (++invalid_command_count_ == AUTO_SHUTDOWN_THRESHOLD) {
       //return false;
@@ -222,14 +222,16 @@ void loop() {
     }
   }
   if (client_) {
-    if (!ProcessTextualCommand(client_)) {
+    if (!ProcessTextualCommand()) {
       steer_servo_.detach();
       esc_.detach();
       client_.stop();
       Serial.println("Terminate control.");
-      InitServer();
+      //InitServer();
       return;
     }
+  } else {
+    InitServer();
   }
   delay(5);
 }
