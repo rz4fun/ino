@@ -1,4 +1,5 @@
 #include <Bridge.h>
+#include <Console.h>
 #include <YunServer.h>
 #include <YunClient.h>
 #include <Servo.h>
@@ -96,6 +97,8 @@ inline int Handshake() {
 #ifdef DEBUG
     Serial.print("security token received: ");
     Serial.println(handshake_message);
+    Console.print("security token received: ");
+    Console.println(handshake_message);
 #endif
     server_.write(confirmation_);
     return 0;
@@ -138,6 +141,10 @@ void InitServer() {
 
 void setup() {
   Serial.begin(9600);
+#ifdef DEBUG
+  Bridge.begin();
+  Console.begin();
+#endif
   pinMode(13, OUTPUT);
   digitalWrite(13, HIGH);
   Bridge.begin();
@@ -166,6 +173,8 @@ boolean ProcessTextualCommand() {
   #ifdef DEBUG
     Serial.print("Speed = ");
     Serial.println(value);
+    Console.print("Speed = ");
+    Console.println(value);
   #endif
     esc_.write(value);
   } else if (instruction == COMMAND_STEER) {
@@ -173,6 +182,8 @@ boolean ProcessTextualCommand() {
   #ifdef DEBUG
     Serial.print("Steer = ");
     Serial.println(value);
+    //Console.print("Steer = ");
+    //Console.println(value);
   #endif
     if (value < STEER_CENTER) {
       right_turn_signal_on_ = false;
@@ -196,6 +207,8 @@ boolean ProcessTextualCommand() {
 #ifdef DEBUG
     Serial.print("Light = ");
     Serial.println(value);
+    Console.print("Light = ");
+    Console.println(value);
 #endif
     value == LIGHT_OFF ?
         digitalWrite(HEADLIGHT_SIGNAL_PIN, LIGHT_OFF) : digitalWrite(HEADLIGHT_SIGNAL_PIN, LIGHT_ON);
@@ -233,7 +246,7 @@ void loop() {
   } else {
     InitServer();
   }
-  delay(5);
+  //delay(1);
 }
 
 #undef DEBUG
